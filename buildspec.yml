@@ -6,7 +6,7 @@ phases:
       - echo Logging in to Amazon ECR...
       - aws --version
       - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-      - REGION=$(aws configure get region)
+      - REGION=$AWS_DEFAULT_REGION
       - REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/my-nginx-app
       - IMAGE_TAG=$(date +%Y%m%d%H%M%S)
       - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
@@ -22,6 +22,7 @@ phases:
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
       - printf '[{"name":"nginx-container","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+
 artifacts:
   files:
     - imagedefinitions.json

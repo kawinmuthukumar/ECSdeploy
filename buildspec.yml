@@ -3,10 +3,10 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo "Logging into Amazon ECR..."
+      - echo "Logging into Amazon ECR (us-east-1)..."
       - aws --version
       - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-      - REGION=$(aws configure get region)
+      - REGION="us-east-1"
       - REPO_NAME="my-nginx-app"
       - ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPO_NAME"
 

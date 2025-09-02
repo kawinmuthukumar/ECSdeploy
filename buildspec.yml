@@ -3,27 +3,25 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo "Determining account and repo..."
-      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      - REGION=$AWS_DEFAULT_REGION
-      - REPOSITORY_NAME=my-static-site         # <- change if you like
-      - REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPOSITORY_NAME
-      - echo "Logging in to Amazon ECR..."
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+      - REGION=$(aws configure get region)
+      - REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/my-nginx-app
+      - IMAGE_TAG=$(date +%Y%m%d%H%M%S)
       - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
-      - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}  # short commit sha
   build:
     commands:
-      - echo "Building image..."
+      - echo Building Docker image...
       - docker build -t $REPOSITORY_URI:latest .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
   post_build:
     commands:
-      - echo "Pushing image to ECR..."
+      - echo Pushing Docker images...
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - echo "Writing imagedefinitions.json for ECS deploy..."
-      - printf '[{"name":"my-static-site","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
-
+      - echo Writing image definitions file...
+      - printf '[{"name":"nginx-container","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
 artifacts:
   files:
     - imagedefinitions.json

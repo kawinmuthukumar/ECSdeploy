@@ -3,25 +3,31 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
+      - echo "Logging into Amazon ECR..."
       - aws --version
       - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-      - REGION=$AWS_DEFAULT_REGION
-      - REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/my-nginx-app
-      - IMAGE_TAG=$(date +%Y%m%d%H%M%S)
-      - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+      - REGION=$(aws configure get region)
+      - REPO_NAME="my-nginx-app"
+      - ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPO_NAME"
+
+      # ✅ Create repo if it doesn’t exist
+      - echo "Checking if ECR repo $REPO_NAME exists..."
+      - aws ecr describe-repositories --repository-names $REPO_NAME --region $REGION || aws ecr create-repository --repository-name $REPO_NAME --region $REGION
+
+      - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URI
+
   build:
     commands:
-      - echo Building Docker image...
-      - docker build -t $REPOSITORY_URI:latest .
-      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+      - echo "Building Docker image..."
+      - docker build -t $REPO_NAME .
+      - docker tag $REPO_NAME:latest $ECR_URI:latest
+
   post_build:
     commands:
-      - echo Pushing Docker images...
-      - docker push $REPOSITORY_URI:latest
-      - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - echo Writing image definitions file...
-      - printf '[{"name":"nginx-container","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - echo "Pushing Docker image to ECR..."
+      - docker push $ECR_URI:latest
+      - echo "Writing imagedefinitions.json..."
+      - printf '[{"name":"my-nginx-app","imageUri":"%s"}]' $ECR_URI:latest > imagedefinitions.json
 
 artifacts:
   files:
